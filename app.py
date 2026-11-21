@@ -11,7 +11,7 @@ from flask import Flask, Response, abort, flash, redirect, render_template, requ
 BASE_DIR = Path(__file__).parent
 DATA_FILE = BASE_DIR / "data" / "climb_log.json"
 
-GRADES = ["6B", "6B+", "6C", "6C+", "7A", "7A+", "7B", "7B+", "7C", "7C+", "8A", "8A+", "8B", "8B+", "8C", "8C+"]
+GRADES = ["V2", "V2+", "V3", "V3+", "V4", "V4+", "V5", "V5+", "V6", "V6+"]
 STATUSES = ["to-try", "projecting", "sent"]
 
 # Masters 2017 board: columns A to K, rows 1 to 18
@@ -66,15 +66,18 @@ def validate_holds(holds):
     for h in holds:
         if not VALID_HOLD.match(h["position"]):
             return f'"{h["position"]}" is not on the board. Use columns A to K and rows 1 to 18.'
-    if sum(h["role"] == "start" for h in holds) != 1:
-        return "A problem needs exactly one start hold."
-    if sum(h["role"] == "end" for h in holds) != 1:
-        return "A problem needs exactly one end hold."
+    if not any(h["role"] == "start" for h in holds):
+        return "A problem needs at least one start hold."
+    if not any(h["role"] == "end" for h in holds):
+        return "A problem needs at least one end hold."
     return None
 
-
 def parse_annotations(text):
-    """Clean the arrows and labels JSON sent by the board editor."""
+    """Clean the arrows and labels JSON sent by the board editor.
+
+    Labels are stored as free positions: {"x": 0-110, "y": 0-180, "text": "..."}.
+    Older labels attached to a hold ({"pos": "C5", "text": "..."}) are converted.
+    """
     empty = {"arrows": [], "labels": []}
     try:
         data = json.loads(text or "{}")
@@ -87,8 +90,14 @@ def parse_annotations(text):
         pos = str(value or "").strip().upper()
         return pos if VALID_HOLD.match(pos) else None
 
+    def pos_centre(pos):
+        col = "ABCDEFGHIJK".index(pos[0])
+        row = int(pos[1:])
+        return col * 10 + 5, (18 - row) * 10 + 5
+
     arrows = []
-    for a in data.get("arrows") if isinstance(data.get("arrows"), list) else []:
+    raw_arrows = data.get("arrows") if isinstance(data.get("arrows"), list) else []
+    for a in raw_arrows:
         if not isinstance(a, dict):
             continue
         start, end = clean_pos(a.get("from")), clean_pos(a.get("to"))
@@ -97,16 +106,25 @@ def parse_annotations(text):
             arrows.append({"from": start, "to": end, "label": label})
 
     labels = []
-    for item in data.get("labels") if isinstance(data.get("labels"), list) else []:
+    raw_labels = data.get("labels") if isinstance(data.get("labels"), list) else []
+    for item in raw_labels:
         if not isinstance(item, dict):
             continue
-        pos = clean_pos(item.get("pos"))
         text_value = str(item.get("text", "")).strip()[:MAX_LABEL_LENGTH]
-        if pos and text_value:
-            labels.append({"pos": pos, "text": text_value})
+        if not text_value:
+            continue
+        try:
+            x = min(max(float(item["x"]), 0), 110)
+            y = min(max(float(item["y"]), 0), 180)
+        except (KeyError, TypeError, ValueError):
+            pos = clean_pos(item.get("pos"))
+            if not pos:
+                continue
+            cx, cy = pos_centre(pos)
+            x, y = cx, cy - 6
+        labels.append({"x": round(x, 1), "y": round(y, 1), "text": text_value})
 
     return {"arrows": arrows, "labels": labels}
-
 
 def parse_tags(text):
     return [t.strip().lower() for t in text.split(",") if t.strip()]
@@ -123,6 +141,7 @@ def format_holds(holds):
 @app.route("/")
 def index():
     problems = load_problems()
+    by_id = {p["id"]: p for p in problems}
     grade_filter = request.args.get("grade", "").strip().lower()
     status_filter = request.args.get("status", "all")
 
@@ -131,6 +150,25 @@ def index():
         if (not grade_filter or grade_filter in p["grade"].lower())
         and (status_filter == "all" or p["status"] == status_filter)
     ]
+
+    # Count variants per parent problem
+    variant_counts = {}
+    for p in problems:
+        parent = p.get("parent_id")
+        if parent:
+            variant_counts[parent] = variant_counts.get(parent, 0) + 1
+
+    # If "Make variant" was clicked, pre-fill the form from that problem
+    prefill = by_id.get(request.args.get("variant_of", ""))
+    if prefill:
+        prefill_name = f"{prefill['name']} (variant)"
+        prefill_holds = format_holds(prefill["holds"])
+        prefill_annotations = json.dumps(prefill.get("annotations", {"arrows": [], "labels": []}))
+    else:
+        prefill_name = ""
+        prefill_holds = ""
+        prefill_annotations = json.dumps({"arrows": [], "labels": []})
+
     return render_template(
         "index.html",
         problems=visible,
@@ -141,6 +179,12 @@ def index():
         status_filter=status_filter,
         today=date.today().isoformat(),
         format_holds=format_holds,
+        by_id=by_id,
+        variant_counts=variant_counts,
+        prefill=prefill,
+        prefill_name=prefill_name,
+        prefill_holds=prefill_holds,
+        prefill_annotations=prefill_annotations,
     )
 
 
@@ -156,6 +200,12 @@ def add_problem():
         return redirect(url_for("index"))
 
     problems = load_problems()
+
+    # Only link to a parent that actually exists
+    parent_id = request.form.get("parent_id", "")
+    if not any(p["id"] == parent_id for p in problems):
+        parent_id = None
+
     problems.append({
         "id": uuid.uuid4().hex[:10],
         "name": request.form.get("name", "").strip(),
@@ -166,11 +216,12 @@ def add_problem():
         "tags": parse_tags(request.form.get("tags", "")),
         "notes": request.form.get("notes", "").strip(),
         "beta": request.form.get("beta", "").strip(),
+        "parent_id": parent_id,
         "attempts": [],
         "createdAt": datetime.now().isoformat(timespec="seconds"),
     })
     save_problems(problems)
-    flash("Problem saved.")
+    flash("Variant saved." if parent_id else "Problem saved.")
     return redirect(url_for("index"))
 
 

@@ -7,10 +7,11 @@ It makes a local web app for logging Moonboard Masters 2017 (40°) problems and 
 ## Features
 
 - Add problems with name, Moonboard font grade, status, holds, tags, and notes
-- Holds are checked against the board (columns A to K, rows 1 to 18), with exactly one start and one end hold
+- Holds are checked against the board (columns A to K, rows 1 to 18)
 - Filter the catalog by grade or status
 - Log attempts with date, result, and notes. A "sent" attempt marks the problem as sent.
 - Change status or delete problems
+- Can edit previously logged problems and create variants of these linked back to the original
 - Export to JSON and import it back for backups
 
 ## Setup

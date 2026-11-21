@@ -1,20 +1,22 @@
-// Moonboard Masters 2017 (40°) board: holds, arrows and labels.
+// Moonboard Masters 2017 (40°) board: holds, arrows and movable labels.
 (function () {
   const COLS = "ABCDEFGHIJK";
   const ROWS = 18;
+  const VIEW_W = 110;
+  const VIEW_H = 180;
   // Holds mode cycles: none -> middle -> start -> end -> none
   const ROLE_CYCLE = [null, "middle", "start", "end"];
   const SVG_NS = "http://www.w3.org/2000/svg";
   const HINTS = {
-    holds: "Tap a hold: middle, then start, then end, then clear.",
+    holds: "Tap a hold to cycle: middle, start, end, clear. Several starts and ends are fine.",
     arrow: "Tap where the move starts, then where it ends.",
-    label: "Tap a hold to add or edit its label.",
+    label: "Tap a hold to add a label above it. Drag labels anywhere. Tap a label to edit it.",
   };
   let uidCounter = 0;
 
   // ---------- Helpers ----------
 
-  // Hold position -> centre point in the SVG coordinate space (110 x 180)
+  // Hold position -> centre point in the SVG coordinate space
   function centre(pos) {
     return {
       x: COLS.indexOf(pos[0]) * 10 + 5,
@@ -22,11 +24,23 @@
     };
   }
 
+  function clamp(value, min, max) {
+    return Math.min(Math.max(value, min), max);
+  }
+
   function svgEl(tag, attrs, text) {
     const node = document.createElementNS(SVG_NS, tag);
     Object.entries(attrs || {}).forEach(([k, v]) => node.setAttribute(k, v));
     if (text !== undefined) node.textContent = text;
     return node;
+  }
+
+  // Converts a mouse event into SVG coordinates, so labels can be dragged
+  function toSvgPoint(svg, e) {
+    const pt = svg.createSVGPoint();
+    pt.x = e.clientX;
+    pt.y = e.clientY;
+    return pt.matrixTransform(svg.getScreenCTM().inverse());
   }
 
   // "C5 start, F9, H14 end" -> { C5: "start", F9: "middle", H14: "end" }
@@ -42,7 +56,7 @@
     return holds;
   }
 
-  // Start hold first, end hold last
+  // Start holds first, middle holds, end holds last
   function toText(holds) {
     const entries = Object.entries(holds);
     const ordered = [
@@ -55,20 +69,31 @@
       .join(", ");
   }
 
+  function normaliseAnnotations(data) {
+    const obj = data && typeof data === "object" ? data : {};
+    const arrows = Array.isArray(obj.arrows) ? obj.arrows : [];
+    const rawLabels = Array.isArray(obj.labels) ? obj.labels : [];
+    const labels = [];
+    rawLabels.forEach((l) => {
+      if (!l || typeof l !== "object") return;
+      const text = String(l.text || "");
+      if (typeof l.x === "number" && typeof l.y === "number") {
+        labels.push({ x: l.x, y: l.y, text });
+      } else if (l.pos && /^[A-K](1[0-8]|[1-9])$/.test(l.pos)) {
+        // Older labels attached to a hold: place them just above it
+        const c = centre(l.pos);
+        labels.push({ x: c.x, y: c.y - 6, text });
+      }
+    });
+    return { arrows, labels };
+  }
+
   function parseAnnotations(text) {
     try {
       return normaliseAnnotations(JSON.parse(text || "{}"));
     } catch (err) {
       return normaliseAnnotations({});
     }
-  }
-
-  function normaliseAnnotations(data) {
-    const obj = data && typeof data === "object" ? data : {};
-    return {
-      arrows: Array.isArray(obj.arrows) ? obj.arrows : [],
-      labels: Array.isArray(obj.labels) ? obj.labels : [],
-    };
   }
 
   // ---------- Drawing ----------
@@ -99,7 +124,7 @@
     const uid = ++uidCounter;
     const svg = svgEl("svg", {
       class: "board-svg",
-      viewBox: "0 0 110 180",
+      viewBox: `0 0 ${VIEW_W} ${VIEW_H}`,
       preserveAspectRatio: "none",
     });
     const defs = svgEl("defs");
@@ -112,7 +137,7 @@
       markerHeight: "4",
       orient: "auto",
     });
-    marker.appendChild(svgEl("path", { d: "M0,0 L10,5 L0,10 z", fill: "#facc15" }));
+    marker.appendChild(svgEl("path", { d: "M0,0 L10,5 L0,10 z", fill: "#f97316" }));
     defs.appendChild(marker);
     svg.appendChild(defs);
 
@@ -135,8 +160,18 @@
     });
   }
 
-  // Redraws all arrows and labels on the SVG overlay
-  function drawOverlay(svg, uid, annotations) {
+  const LABEL_STYLE = {
+    "text-anchor": "middle",
+    "font-size": "4",
+    "font-weight": "bold",
+    fill: "#fff",
+    stroke: "#1f2328",
+    "stroke-width": "1.2",
+    "paint-order": "stroke",
+  };
+
+  // Redraws arrows and labels. opts is only passed in the editor.
+  function drawOverlay(svg, uid, annotations, opts) {
     Array.from(svg.children).forEach((node) => {
       if (node.tagName !== "defs") node.remove();
     });
@@ -166,43 +201,65 @@
         svg.appendChild(
           svgEl(
             "text",
-            {
-              x: (from.x + to.x) / 2,
-              y: (from.y + to.y) / 2 - 1.5,
-              "text-anchor": "middle",
-              "font-size": "4",
-              "font-weight": "bold",
-              fill: "#fff",
-              stroke: "#1f2328",
-              "stroke-width": "1.2",
-              "paint-order": "stroke",
-            },
+            { ...LABEL_STYLE, x: (from.x + to.x) / 2, y: (from.y + to.y) / 2 - 1.5 },
             a.label
           )
         );
       }
     });
 
-    annotations.labels.forEach((l) => {
-      const c = centre(l.pos);
-      svg.appendChild(
-        svgEl(
-          "text",
-          {
-            x: c.x,
-            y: c.y - 6,
-            "text-anchor": "middle",
-            "font-size": "4",
-            "font-weight": "bold",
-            fill: "#fff",
-            stroke: "#1f2328",
-            "stroke-width": "1.2",
-            "paint-order": "stroke",
-          },
-          l.text
-        )
-      );
+    annotations.labels.forEach((l, index) => {
+      const text = svgEl("text", { ...LABEL_STYLE, x: l.x, y: l.y }, l.text);
+      if (opts && opts.editable) {
+        text.style.pointerEvents = "auto";
+        text.style.cursor = "move";
+        text.addEventListener("pointerdown", (e) => startLabelDrag(e, svg, index, opts));
+      }
+      svg.appendChild(text);
     });
+  }
+
+  // ---------- Label dragging (editor only) ----------
+
+  function startLabelDrag(e, svg, index, opts) {
+    e.preventDefault();
+    e.stopPropagation();
+
+    const start = toSvgPoint(svg, e);
+    const label = opts.getLabels()[index];
+    if (!label) return;
+    const offsetX = label.x - start.x;
+    const offsetY = label.y - start.y;
+    let moved = false;
+
+    svg.setPointerCapture(e.pointerId);
+
+    function onMove(ev) {
+      const p = toSvgPoint(svg, ev);
+      if (!moved && Math.hypot(p.x - start.x, p.y - start.y) < 0.8) return;
+      if (!moved) {
+        moved = true;
+        opts.onDragStart();
+      }
+      label.x = clamp(p.x + offsetX, 0, VIEW_W);
+      label.y = clamp(p.y + offsetY, 0, VIEW_H);
+      opts.onDrag();
+    }
+
+    function onUp() {
+      svg.removeEventListener("pointermove", onMove);
+      svg.removeEventListener("pointerup", onUp);
+      svg.removeEventListener("pointercancel", onUp);
+      if (moved) {
+        opts.onDragEnd();
+      } else {
+        opts.onLabelTap(index);
+      }
+    }
+
+    svg.addEventListener("pointermove", onMove);
+    svg.addEventListener("pointerup", onUp);
+    svg.addEventListener("pointercancel", onUp);
   }
 
   // ---------- Editor ----------
@@ -245,11 +302,35 @@
     // Repaints everything and writes the results into the form fields
     function refresh() {
       paintHolds(grid, holds, pendingFrom);
-      drawOverlay(svg, uid, annotations);
+      drawOverlay(svg, uid, annotations, editorOpts);
       holdsInput.value = toText(holds);
       annotationsInput.value = JSON.stringify(annotations);
       updateHint();
     }
+
+    // Tapping an existing label opens its text for editing
+    function editLabel(index) {
+      const label = annotations.labels[index];
+      if (!label) return;
+      const text = window.prompt("Label text (clear it to delete):", label.text);
+      if (text === null) return;
+      snapshot();
+      if (text.trim()) {
+        label.text = text.trim();
+      } else {
+        annotations.labels.splice(index, 1);
+      }
+      refresh();
+    }
+
+    const editorOpts = {
+      editable: true,
+      getLabels: () => annotations.labels,
+      onDragStart: () => snapshot(),
+      onDrag: () => drawOverlay(svg, uid, annotations, editorOpts),
+      onDragEnd: () => refresh(),
+      onLabelTap: (index) => editLabel(index),
+    };
 
     grid.addEventListener("click", (e) => {
       const cell = e.target.closest(".hold-cell");
@@ -260,12 +341,6 @@
         snapshot();
         const current = holds[pos] || null;
         const next = ROLE_CYCLE[(ROLE_CYCLE.indexOf(current) + 1) % ROLE_CYCLE.length];
-        // Only one start and one end: move the existing one to middle
-        if (next === "start" || next === "end") {
-          for (const key of Object.keys(holds)) {
-            if (holds[key] === next) holds[key] = "middle";
-          }
-        }
         if (next) {
           holds[pos] = next;
         } else {
@@ -285,12 +360,11 @@
           pendingFrom = null;
         }
       } else if (mode === "label") {
-        const existing = annotations.labels.find((l) => l.pos === pos);
-        const text = window.prompt(`Label for ${pos}:`, existing ? existing.text : "");
-        if (text !== null) {
+        const text = window.prompt(`Label for ${pos}:`, "");
+        if (text && text.trim()) {
           snapshot();
-          annotations.labels = annotations.labels.filter((l) => l.pos !== pos);
-          if (text.trim()) annotations.labels.push({ pos, text: text.trim() });
+          const c = centre(pos);
+          annotations.labels.push({ x: c.x, y: c.y - 6, text: text.trim() });
         }
       }
 
@@ -328,7 +402,7 @@
     });
 
     paintHolds(grid, holds, null);
-    drawOverlay(svg, uid, annotations);
+    drawOverlay(svg, uid, annotations, editorOpts);
     updateHint();
   }
 
@@ -345,7 +419,7 @@
     paintHolds(grid, holds, null);
 
     const annotations = normaliseAnnotations(JSON.parse(container.dataset.annotations || "{}"));
-    drawOverlay(svg, uid, annotations);
+    drawOverlay(svg, uid, annotations, null);
   }
 
   // ---------- Start ----------

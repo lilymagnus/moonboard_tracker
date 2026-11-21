@@ -1,0 +1,90 @@
+[
+  {
+    "id": "933fd71a91",
+    "name": "EASY SIDE WALK",
+    "grade": "V3",
+    "status": "sent",
+    "holds": [
+      {
+        "position": "H10",
+        "role": "start"
+      },
+      {
+        "position": "K11",
+        "role": "start"
+      },
+      {
+        "position": "J13",
+        "role": "middle"
+      },
+      {
+        "position": "F12",
+        "role": "middle"
+      },
+      {
+        "position": "G13",
+        "role": "middle"
+      },
+      {
+        "position": "C13",
+        "role": "middle"
+      },
+      {
+        "position": "C16",
+        "role": "middle"
+      },
+      {
+        "position": "E16",
+        "role": "middle"
+      },
+      {
+        "position": "D18",
+        "role": "end"
+      }
+    ],
+    "annotations": {
+      "arrows": [
+        {
+          "from": "K11",
+          "to": "J13",
+          "label": "bump"
+        },
+        {
+          "from": "J13",
+          "to": "G13",
+          "label": "bump"
+        },
+        {
+          "from": "H10",
+          "to": "F12",
+          "label": "pinch"
+        },
+        {
+          "from": "C13",
+          "to": "C16",
+          "label": "bump"
+        }
+      ],
+      "labels": [
+        {
+          "x": 105.6,
+          "y": 82.1,
+          "text": "heel"
+        },
+        {
+          "x": 65.7,
+          "y": 62.8,
+          "text": "heel"
+        }
+      ]
+    },
+    "tags": [
+      "heel hooks all the way baby"
+    ],
+    "notes": "",
+    "beta": "Initial no-foot start, right hand bump and high heel on the freed hand hold.",
+    "parent_id": null,
+    "attempts": [],
+    "createdAt": "2026-11-21T11:10:38"
+  }
+]

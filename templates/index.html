@@ -27,18 +27,30 @@
       {% endfor %}
     {% endwith %}
 
-    <section class="card">
-      <h2>Add a problem</h2>
+    <section class="card" id="add">
+      <h2>{{ 'Add a variant' if prefill else 'Add a problem' }}</h2>
+
+      {% if prefill %}
+        <div class="flash">
+          Creating a variant of <strong>{{ prefill.name }}</strong>. Change the holds, grade or arrows, then save.
+          <a href="{{ url_for('index') }}">Cancel</a>
+        </div>
+      {% endif %}
+
       <form action="{{ url_for('add_problem') }}" method="post" class="grid-form" id="problem-form">
+        <input type="hidden" name="parent_id" value="{{ prefill.id if prefill else '' }}" />
+
         <label>
           Name
-          <input name="name" type="text" required placeholder="e.g. Crimp Ladder" />
+          <input name="name" type="text" required placeholder="e.g. Crimp Ladder" value="{{ prefill_name }}" />
         </label>
         <label>
           Grade
           <select name="grade" required>
             <option value="">Choose a grade</option>
-            {% for g in grades %}<option>{{ g }}</option>{% endfor %}
+            {% for g in grades %}
+              <option value="{{ g }}" {% if prefill and prefill.grade == g %}selected{% endif %}>{{ g }}</option>
+            {% endfor %}
           </select>
         </label>
         <label>
@@ -51,8 +63,8 @@
         <div class="wide">
           <span class="label-text">Board</span>
           <div id="board-input"></div>
-          <input id="holds-input" name="holds" type="text" required placeholder="C5 start, F9, H14 end" />
-          <input id="annotations-input" name="annotations" type="hidden" value="" />
+          <input id="holds-input" name="holds" type="text" required placeholder="C5 start, F9, H14 end" value="{{ prefill_holds }}" />
+          <input id="annotations-input" name="annotations" type="hidden" value="{{ prefill_annotations }}" />
           <small class="hint">Holds are filled in as you tap. The text box also accepts typed holds.</small>
         </div>
 
@@ -68,7 +80,7 @@
           Notes
           <textarea name="notes" rows="2"></textarea>
         </label>
-        <button type="submit" class="btn full">Save problem</button>
+        <button type="submit" class="btn full">Save {{ 'variant' if prefill else 'problem' }}</button>
       </form>
     </section>
 
@@ -95,11 +107,18 @@
 
       <div class="problem-list">
         {% for p in problems %}
-          <article class="problem">
+          <article class="problem {{ p.status }}">
             <div class="problem-header">
               <span class="problem-title">{{ p.name }} <span class="meta">({{ p.grade }})</span></span>
               <span class="badge {{ p.status }}">{{ p.status }}</span>
             </div>
+
+            {% if p.parent_id and p.parent_id in by_id %}
+              <p class="meta">Variant of {{ by_id[p.parent_id].name }}</p>
+            {% elif variant_counts.get(p.id) %}
+              <p class="meta">{{ variant_counts[p.id] }} variant{{ 's' if variant_counts[p.id] != 1 }}</p>
+            {% endif %}
+
             <p class="meta">
               {{ format_holds(p.holds) }}
               {% if p.tags %} &middot; {{ p.tags|join(', ') }}{% endif %}
@@ -140,6 +159,7 @@
                   {% endfor %}
                 </select>
               </form>
+              <a class="btn dark" href="{{ url_for('index', variant_of=p.id) }}#problem-form">Make variant</a>
               <form action="{{ url_for('delete_problem', problem_id=p.id) }}" method="post"
                     onsubmit="return confirm('Delete this problem and its attempts?');">
                 <button type="submit" class="btn danger">Delete</button>
