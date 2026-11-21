@@ -19,15 +19,15 @@ It makes a local web app for logging Moonboard Masters 2017 (40°) problems and 
 Requires Python 3.10 or newer.
 
 ```bash
-python -m venv .venv
+python3 -m venv .venv
 source .venv/bin/activate        # Windows: .venv\Scripts\activate
-pip install -r requirements.txt
+pip3 install -r requirements.txt
 ```
 
 ## Run
 
 ```bash
-python app.py
+python3 app.py
 ```
 
 Then open http://127.0.0.1:5000 in your browser.
