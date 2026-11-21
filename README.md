@@ -39,9 +39,13 @@ Problems are saved to `data/climb_log.json`. Use **Export** to keep a backup cop
 ## Project structure
 
 ```
-app.py                 Flask app: routes, storage, validation
-templates/index.html   Page template
-static/styles.css      Styling
-data/                  Your saved climbs (created automatically, git-ignored)
-requirements.txt       Python dependencies
+app.py                  Flask app: routes, storage, validation
+templates/index.html    Page template
+templates/edit.html     Edit template
+templates/progress.html Progress template
+static/styles.css       Styling
+static/board.js         Interactive board styling
+data/                   Your saved climbs (created automatically, git-ignored)
+requirements.txt        Python dependencies
+progress/               Track progress
 ```
