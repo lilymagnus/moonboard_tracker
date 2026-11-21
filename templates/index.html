@@ -10,6 +10,7 @@
   <header>
     <h1>Climb Log <span class="board-label">Moonboard Masters 2017 &middot; 40&deg;</span></h1>
     <div class="toolbar">
+      <a class="btn dark" href="{{ url_for('progress') }}">Progress</a>
       <a class="btn dark" href="{{ url_for('export') }}">Export</a>
       <form action="{{ url_for('import_problems') }}" method="post" enctype="multipart/form-data" class="import-form">
         <label class="btn dark">

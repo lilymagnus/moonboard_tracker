@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Progress - Climb Log</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}" />
+</head>
+<body>
+  <header>
+    <h1>Progress <span class="board-label">Moonboard Masters 2017 &middot; 40&deg;</span></h1>
+    <div class="toolbar">
+      <a class="btn dark" href="{{ url_for('index') }}">Back to catalog</a>
+    </div>
+  </header>
+
+  <main>
+    <section class="card">
+      <div class="stat-grid">
+        <div class="stat">
+          <span class="stat-num">{{ data.total }}</span>
+          <span class="stat-label">Problems</span>
+        </div>
+        <div class="stat">
+          <span class="stat-num">{{ data.total_sends }}</span>
+          <span class="stat-label">Sends</span>
+        </div>
+        <div class="stat">
+          <span class="stat-num">{{ data.total_attempts }}</span>
+          <span class="stat-label">Attempts</span>
+        </div>
+        <div class="stat">
+          <span class="stat-num">{{ data.hardest or '-' }}</span>
+          <span class="stat-label">Hardest send</span>
+        </div>
+      </div>
+    </section>
+
+    {% if data.total == 0 %}
+      <section class="card">
+        <p class="empty">No problems yet. Add some on the catalog page and log attempts to see charts here.</p>
+      </section>
+    {% else %}
+      <div class="progress-grid">
+
+        <section class="chart-card">
+          <h2>Sends by grade</h2>
+          {% if data.grade_rows %}
+            <div class="bars">
+              {% for r in data.grade_rows %}
+                <div class="bar-row">
+                  <span class="bar-grade">{{ r.label }}</span>
+                  <div class="bar-track"><div class="bar-fill" style="width: {{ r.pct }}%"></div></div>
+                  <span class="bar-count">{{ r.count }}</span>
+                </div>
+              {% endfor %}
+            </div>
+          {% else %}
+            <p class="empty">No sends yet.</p>
+          {% endif %}
+        </section>
+
+        <section class="chart-card">
+          <h2>Problems by status</h2>
+          <div class="bars">
+            {% for r in data.status_rows %}
+              <div class="bar-row">
+                <span class="bar-grade">{{ r.label }}</span>
+                <div class="bar-track"><div class="bar-fill status-{{ r.label }}" style="width: {{ r.pct }}%"></div></div>
+                <span class="bar-count">{{ r.count }}</span>
+              </div>
+            {% endfor %}
+          </div>
+        </section>
+
+        <section class="chart-card wide">
+          <h2>Attempts and sends per month</h2>
+          {% if data.month_rows %}
+            <div class="month-chart">
+              {% for m in data.month_rows %}
+                <div class="month-col">
+                  <div class="month-bars">
+                    <div class="month-bar attempts" style="height: {{ m.attempts_pct }}%" title="{{ m.attempts }} attempts"></div>
+                    <div class="month-bar sends" style="height: {{ m.sends_pct }}%" title="{{ m.sends }} sends"></div>
+                  </div>
+                  <span class="month-label">{{ m.label }}</span>
+                </div>
+              {% endfor %}
+            </div>
+            <div class="legend">
+              <span><i class="swatch attempts"></i> Attempts</span>
+              <span><i class="swatch sends"></i> Sends</span>
+            </div>
+          {% else %}
+            <p class="empty">Log some attempts to see monthly activity.</p>
+          {% endif %}
+        </section>
+
+        <section class="chart-card wide">
+          <h2>Cumulative sends</h2>
+          {% if data.cum_points %}
+            <svg class="line-chart" viewBox="0 0 300 100" preserveAspectRatio="none">
+              <polyline points="{{ data.cum_points }}" fill="none" stroke="#0ea5e9" stroke-width="2.5"
+                        stroke-linejoin="round" stroke-linecap="round" vector-effect="non-scaling-stroke" />
+            </svg>
+            <p class="meta">Total so far: <strong>{{ data.cum_last }}</strong> sends</p>
+          {% else %}
+            <p class="empty">Log some sends to see your progress over time.</p>
+          {% endif %}
+        </section>
+
+      </div>
+    {% endif %}
+  </main>
+</body>
+</html>

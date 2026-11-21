@@ -89,6 +89,76 @@ def remove_snapshot_file(filename):
 def snapshot(filename):
     return send_from_directory(SNAPSHOT_DIR, filename, mimetype="image/png")
 
+# ---- progress page -------
+def build_progress(problems):
+    sends_by_grade = {g: 0 for g in GRADES}
+    status_counts = {s: 0 for s in STATUSES}
+    monthly = {}  # "2026-11" -> {"attempts": n, "sends": n}
+    total_sends = 0
+
+    for p in problems:
+        status_counts[p["status"]] = status_counts.get(p["status"], 0) + 1
+        if p["status"] == "sent" and p["grade"] in sends_by_grade:
+            sends_by_grade[p["grade"]] += 1
+        for a in p["attempts"]:
+            month = (a.get("date") or "")[:7]
+            if len(month) != 7:
+                continue
+            bucket = monthly.setdefault(month, {"attempts": 0, "sends": 0})
+            bucket["attempts"] += 1
+            if a["result"] == "sent":
+                bucket["sends"] += 1
+                total_sends += 1
+
+    months = sorted(monthly)
+    max_grade = max(sends_by_grade.values(), default=0)
+    max_status = max(status_counts.values(), default=0)
+    max_month = max((monthly[m]["attempts"] for m in months), default=0)
+
+    # Running total of sends, as SVG points in a 300 x 100 box
+    cumulative, running = [], 0
+    for m in months:
+        running += monthly[m]["sends"]
+        cumulative.append(running)
+    cum_max = max(cumulative, default=0)
+    n = len(cumulative)
+    points = []
+    for i, v in enumerate(cumulative):
+        x = 0 if n == 1 else i / (n - 1) * 300
+        y = 100 - (v / cum_max * 90 if cum_max else 0)
+        points.append(f"{x:.1f},{y:.1f}")
+
+    grades_sent = [g for g in GRADES if sends_by_grade[g]]
+    return {
+        "total": len(problems),
+        "total_sends": total_sends,
+        "total_attempts": sum(v["attempts"] for v in monthly.values()),
+        "hardest": max(grades_sent, key=GRADES.index) if grades_sent else None,
+        "grade_rows": [
+            {"label": g, "count": sends_by_grade[g],
+             "pct": round(sends_by_grade[g] / max_grade * 100) if max_grade else 0}
+            for g in GRADES if sends_by_grade[g] or g in grades_sent
+        ],
+        "status_rows": [
+            {"label": s, "count": status_counts[s],
+             "pct": round(status_counts[s] / max_status * 100) if max_status else 0}
+            for s in STATUSES
+        ],
+        "month_rows": [
+            {"label": m,
+             "attempts": monthly[m]["attempts"],
+             "sends": monthly[m]["sends"],
+             "attempts_pct": round(monthly[m]["attempts"] / max_month * 100) if max_month else 0,
+             "sends_pct": round(monthly[m]["sends"] / max_month * 100) if max_month else 0}
+            for m in months
+        ],
+        "cum_points": " ".join(points),
+        "cum_last": cumulative[-1] if cumulative else 0,
+    }
+
+@app.route("/progress")
+def progress():
+    return render_template("progress.html", data=build_progress(load_problems()))
 # ---------- Parsing and validation ----------
 
 def parse_holds(text):
