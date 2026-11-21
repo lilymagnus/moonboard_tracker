@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Climb Log</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}" />
+</head>
+<body>
+  <header>
+    <h1>Climb Log <span class="board-label">Moonboard Masters 2017 &middot; 40&deg;</span></h1>
+    <div class="toolbar">
+      <a class="btn dark" href="{{ url_for('export') }}">Export</a>
+      <form action="{{ url_for('import_problems') }}" method="post" enctype="multipart/form-data" class="import-form">
+        <label class="btn dark">
+          Import
+          <input type="file" name="file" accept="application/json" onchange="this.form.submit()" hidden />
+        </label>
+      </form>
+    </div>
+  </header>
+
+  <main>
+    {% with messages = get_flashed_messages() %}
+      {% for msg in messages %}
+        <div class="flash">{{ msg }}</div>
+      {% endfor %}
+    {% endwith %}
+
+    <section class="card">
+      <h2>Add a problem</h2>
+      <form action="{{ url_for('add_problem') }}" method="post" class="grid-form" id="problem-form">
+        <label>
+          Name
+          <input name="name" type="text" required placeholder="e.g. Crimp Ladder" />
+        </label>
+        <label>
+          Grade
+          <select name="grade" required>
+            <option value="">Choose a grade</option>
+            {% for g in grades %}<option>{{ g }}</option>{% endfor %}
+          </select>
+        </label>
+        <label>
+          Status
+          <select name="status">
+            {% for s in statuses %}<option value="{{ s }}">{{ s }}</option>{% endfor %}
+          </select>
+        </label>
+
+        <div class="wide">
+          <span class="label-text">Board</span>
+          <div id="board-input"></div>
+          <input id="holds-input" name="holds" type="text" required placeholder="C5 start, F9, H14 end" />
+          <input id="annotations-input" name="annotations" type="hidden" value="" />
+          <small class="hint">Holds are filled in as you tap. The text box also accepts typed holds.</small>
+        </div>
+
+        <label class="wide">
+          Beta (written explanation)
+          <textarea name="beta" rows="3" placeholder="e.g. Match on the crimp, drop left knee, big move to H14"></textarea>
+        </label>
+        <label class="wide">
+          Tags (comma separated)
+          <input name="tags" type="text" placeholder="crimpy, powerful" />
+        </label>
+        <label class="wide">
+          Notes
+          <textarea name="notes" rows="2"></textarea>
+        </label>
+        <button type="submit" class="btn full">Save problem</button>
+      </form>
+    </section>
+
+    <section class="card">
+      <div class="filters">
+        <h2>Catalog</h2>
+        <form method="get" class="filter-form">
+          <input name="grade" type="text" placeholder="Filter by grade" value="{{ grade_filter }}" />
+          <select name="status" onchange="this.form.submit()">
+            <option value="all">All statuses</option>
+            {% for s in statuses %}
+              <option value="{{ s }}" {% if status_filter == s %}selected{% endif %}>{{ s }}</option>
+            {% endfor %}
+          </select>
+          <button type="submit" class="btn">Filter</button>
+        </form>
+      </div>
+
+      {% if total == 0 %}
+        <p class="empty">No problems yet. Add one above.</p>
+      {% elif problems|length == 0 %}
+        <p class="empty">No problems match these filters.</p>
+      {% endif %}
+
+      <div class="problem-list">
+        {% for p in problems %}
+          <article class="problem">
+            <div class="problem-header">
+              <span class="problem-title">{{ p.name }} <span class="meta">({{ p.grade }})</span></span>
+              <span class="badge {{ p.status }}">{{ p.status }}</span>
+            </div>
+            <p class="meta">
+              {{ format_holds(p.holds) }}
+              {% if p.tags %} &middot; {{ p.tags|join(', ') }}{% endif %}
+            </p>
+
+            <div class="board-view"
+                 data-holds='{{ p.holds|tojson }}'
+                 data-annotations='{{ p.annotations|default({"arrows": [], "labels": []}, true)|tojson }}'></div>
+
+            {% if p.beta %}
+              <div class="beta"><strong>Beta:</strong> {{ p.beta }}</div>
+            {% endif %}
+            {% if p.notes %}<p class="meta">{{ p.notes }}</p>{% endif %}
+
+            {% if p.attempts %}
+              <ul class="attempts">
+                {% for a in p.attempts %}
+                  <li>{{ a.date }}: {{ a.result }}{% if a.notes %} - {{ a.notes }}{% endif %}</li>
+                {% endfor %}
+              </ul>
+            {% endif %}
+
+            <form action="{{ url_for('log_attempt', problem_id=p.id) }}" method="post" class="inline-form">
+              <input type="date" name="date" value="{{ today }}" />
+              <select name="result">
+                <option value="attempt">Attempt</option>
+                <option value="sent">Sent</option>
+              </select>
+              <input type="text" name="notes" placeholder="Notes (optional)" />
+              <button type="submit" class="btn">Log</button>
+            </form>
+
+            <div class="problem-actions">
+              <form action="{{ url_for('set_status', problem_id=p.id) }}" method="post" class="inline-form">
+                <select name="status" onchange="this.form.submit()">
+                  {% for s in statuses %}
+                    <option value="{{ s }}" {% if p.status == s %}selected{% endif %}>{{ s }}</option>
+                  {% endfor %}
+                </select>
+              </form>
+              <form action="{{ url_for('delete_problem', problem_id=p.id) }}" method="post"
+                    onsubmit="return confirm('Delete this problem and its attempts?');">
+                <button type="submit" class="btn danger">Delete</button>
+              </form>
+            </div>
+          </article>
+        {% endfor %}
+      </div>
+    </section>
+  </main>
+
+  <script src="{{ url_for('static', filename='board.js') }}"></script>
+</body>
+</html>

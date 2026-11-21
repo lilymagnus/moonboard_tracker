@@ -1,0 +1,520 @@
+/A* ================= Base ================= */
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  background: radial-gradient(circle at top, #eef2ff 0%, #f4f5f7 45%);
+  color: #1f2328;
+  line-height: 1.45;
+  min-height: 100vh;
+}
+
+/* ================= Header ================= */
+
+header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  padding: 1.1rem 1.75rem;
+  background: #0e4f5c;
+  color: #fff;
+  box-shadow: 0 4px 18px rgba(15, 23, 42, 0.25);
+}
+
+header h1 {
+  margin: 0;
+  font-size: 1.5rem;
+  font-weight: 700;
+  letter-spacing: 0.2px;
+}
+
+.board-label {
+  display: inline-block;
+  font-size: 0.8rem;
+  font-weight: 500;
+  padding: 0.15rem 0.6rem;
+  margin-left: 0.6rem;
+  border-radius: 999px;
+  background: rgba(34, 211, 238, 0.18);
+  color: #a5f3fc;
+  vertical-align: middle;
+}
+
+/* ================= Layout ================= */
+
+main {
+  max-width: 920px;
+  margin: 1.75rem auto;
+  padding: 0 1rem;
+  display: grid;
+  gap: 1.5rem;
+}
+
+/* ================= Cards ================= */
+
+.card {
+  background: #fff;
+  border-radius: 14px;
+  padding: 1.4rem 1.5rem;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.05), 0 8px 24px rgba(15, 23, 42, 0.06);
+  border: 1px solid #eef0f4;
+}
+
+.card h2 {
+  margin: 0 0 1rem;
+  font-size: 1.2rem;
+  font-weight: 650;
+  color: #0f172a;
+}
+
+.flash {
+  background: linear-gradient(90deg, #ecfeff, #e0f2fe);
+  border: 1px solid #a5f3fc;
+  color: #155e75;
+  padding: 0.7rem 1rem;
+  border-radius: 10px;
+  font-size: 0.92rem;
+}
+
+/* ================= Forms ================= */
+
+label {
+  display: flex;
+  flex-direction: column;
+  font-size: 0.85rem;
+  font-weight: 500;
+  color: #374151;
+  gap: 0.35rem;
+}
+
+input, select, textarea {
+  font: inherit;
+  font-weight: 400;
+  padding: 0.55rem 0.7rem;
+  border: 1px solid #d1d5db;
+  border-radius: 8px;
+  background: #fff;
+  color: #1f2328;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+input:focus, select:focus, textarea:focus {
+  outline: none;
+  border-color: #22d3ee;
+  box-shadow: 0 0 0 3px rgba(34, 211, 238, 0.25);
+}
+
+textarea { resize: vertical; }
+
+.hint {
+  color: #6b7280;
+  font-size: 0.8rem;
+  font-weight: 400;
+}
+
+.label-text {
+  display: block;
+  font-size: 0.85rem;
+  font-weight: 500;
+  color: #374151;
+  margin-bottom: 0.35rem;
+}
+
+.grid-form {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.9rem;
+}
+
+.grid-form .wide,
+.grid-form .full { grid-column: 1 / -1; }
+
+/* ================= Buttons ================= */
+
+.btn {
+  display: inline-block;
+  background: linear-gradient(135deg, #2563eb, #0ea5e9);
+  color: #fff;
+  border: none;
+  cursor: pointer;
+  padding: 0.55rem 1.1rem;
+  border-radius: 999px;
+  text-decoration: none;
+  font-size: 0.9rem;
+  font-weight: 600;
+  box-shadow: 0 2px 8px rgba(37, 99, 235, 0.25);
+  transition: transform 0.12s ease, box-shadow 0.12s ease, filter 0.12s ease;
+}
+
+.btn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(37, 99, 235, 0.35);
+  filter: brightness(1.05);
+}
+
+.btn:active { transform: translateY(0); }
+
+.btn.full {
+  width: 100%;
+  padding: 0.7rem 1rem;
+  font-size: 0.95rem;
+}
+
+.btn.dark {
+  background: linear-gradient(135deg, #334155, #1e293b);
+  box-shadow: 0 2px 8px rgba(15, 23, 42, 0.3);
+}
+
+.btn.danger {
+  background: linear-gradient(135deg, #dc2626, #b91c1c);
+  box-shadow: 0 2px 8px rgba(185, 28, 28, 0.25);
+}
+
+.toolbar {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.import-form { margin: 0; }
+
+/* Import label styled as a button */
+.toolbar label.btn {
+  cursor: pointer;
+  display: inline-block;
+  flex-direction: row;
+}
+
+/* ================= Catalog filters ================= */
+
+.filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+  align-items: center;
+  margin-bottom: 1.1rem;
+}
+
+.filters h2 {
+  margin: 0;
+  flex: 1 1 100%;
+}
+
+.filter-form {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  flex: 1 1 100%;
+}
+
+.filter-form input,
+.filter-form select { flex: 1 1 140px; }
+
+/* ================= Problem cards ================= */
+
+.problem-list {
+  display: grid;
+  gap: 1rem;
+}
+
+.problem {
+  position: relative;
+  background: #fff;
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  padding: 1rem 1.1rem 1rem 1.3rem;
+  overflow: hidden;
+  transition: box-shadow 0.15s ease, transform 0.15s ease;
+}
+
+/* Coloured strip on the left shows status at a glance */
+.problem::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 4px;
+  background: #cbd5e1;
+}
+
+.problem.to-try::before { background: #6366f1; }
+.problem.projecting::before { background: #f59e0b; }
+.problem.sent::before { background: #10b981; }
+
+.problem:hover {
+  box-shadow: 0 6px 18px rgba(15, 23, 42, 0.08);
+}
+
+.problem-header {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.problem-title {
+  font-weight: 650;
+  font-size: 1.08rem;
+  color: #0f172a;
+}
+
+.meta {
+  font-size: 0.85rem;
+  color: #6b7280;
+  margin: 0.35rem 0;
+}
+
+.badge {
+  font-size: 0.75rem;
+  font-weight: 600;
+  padding: 0.2rem 0.7rem;
+  border-radius: 999px;
+  background: #e5e7eb;
+  text-transform: capitalize;
+  letter-spacing: 0.2px;
+}
+
+.badge.sent { background: #d1fae5; color: #047857; }
+.badge.projecting { background: #fef3c7; color: #b45309; }
+.badge.to-try { background: #e0e7ff; color: #4338ca; }
+
+.attempts {
+  margin: 0.6rem 0 0;
+  padding-left: 1.1rem;
+  font-size: 0.88rem;
+  color: #374151;
+}
+
+.inline-form {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-top: 0.7rem;
+}
+
+.inline-form input[type="text"] { flex: 1 1 120px; }
+
+.problem-actions {
+  display: flex;
+  gap: 0.5rem;
+  margin-top: 0.7rem;
+  align-items: center;
+}
+
+.problem-actions select {
+  border-radius: 999px;
+  padding: 0.4rem 0.9rem;
+}
+
+.empty {
+  color: #6b7280;
+  text-align: center;
+  padding: 1.5rem 0;
+}
+
+.beta {
+  margin-top: 0.7rem;
+  padding: 0.7rem 0.9rem;
+  background: linear-gradient(90deg, #f0f9ff, #f8fafc);
+  border-left: 3px solid #0ea5e9;
+  border-radius: 8px;
+  font-size: 0.92rem;
+  white-space: pre-wrap;
+}
+
+/* ================= Board: shared ================= */
+
+.board-wrap {
+  display: flex;
+  width: 100%;
+  max-width: 330px;
+  margin: 0.4rem 0;
+}
+
+.board-main {
+  position: relative;
+  flex: 1;
+  min-width: 0;
+}
+
+.board-grid {
+  display: grid;
+  grid-template-columns: repeat(11, 1fr);
+  grid-template-rows: repeat(18, 1fr);
+  gap: 3px;
+  padding: 6px;
+  background: #1f2328;
+  border-radius: 8px;
+  aspect-ratio: 11 / 18;
+  width: 100%;
+}
+
+.board-svg {
+  position: absolute;
+  top: 6px;
+  left: 6px;
+  right: 6px;
+  bottom: 6px;
+  width: auto;
+  height: auto;
+  pointer-events: none;
+  overflow: visible;
+}
+
+.hold-cell {
+  background: #4b5563;
+  border-radius: 50%;
+  user-select: none;
+}
+
+.board-view { margin-top: 0.7rem; }
+
+/* Preview cards: coloured holds */
+.board-small .board-wrap { max-width: 220px; }
+.board-small .board-grid { gap: 2px; padding: 4px; }
+.board-small .board-svg { top: 4px; left: 4px; right: 4px; bottom: 4px; }
+.board-view .hold-cell.middle { background: #60a5fa; }
+.board-view .hold-cell.start { background: #22c55e; }
+.board-view .hold-cell.end { background: #ef4444; }
+
+/* ================= Editor toolbar ================= */
+
+.board-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  align-items: center;
+  margin-bottom: 0.6rem;
+  padding: 0.5rem;
+  background: #f8fafc;
+  border: 1px solid #e3e6eb;
+  border-radius: 10px;
+}
+
+.board-toolbar .tool {
+  padding: 0.35rem 0.8rem;
+  background: #fff;
+  color: #1f2328;
+  border: 1px solid #d1d5db;
+  border-radius: 999px;
+  font-size: 0.85rem;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.board-toolbar .tool:hover {
+  border-color: #22d3ee;
+  color: #0e7490;
+}
+
+.board-toolbar .tool.active {
+  background: linear-gradient(135deg, #0ea5e9, #22d3ee);
+  border-color: transparent;
+  color: #fff;
+  box-shadow: 0 0 10px rgba(34, 211, 238, 0.45);
+}
+
+.mode-hint {
+  flex-basis: 100%;
+  font-size: 0.8rem;
+  color: #5b6370;
+  padding-left: 0.2rem;
+}
+
+/* ================= Board: poster editor (personal use, not committed) ================= */
+
+.board-editable .board-wrap {
+  position: relative;
+  display: block;
+  max-width: 420px;
+  aspect-ratio: 665 / 1024;
+  background: url('/static/board-bg.png') center / 100% 100% no-repeat;
+  border-radius: 10px;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.25), inset 0 0 0 1px rgba(0, 0, 0, 0.1);
+  overflow: hidden;
+  margin: 0.6rem auto;
+}
+
+.board-editable .board-main {
+  position: absolute;
+  left: 10.4%;
+  top: 6.3%;
+  width: 84.7%;
+  height: 89.8%;
+}
+
+.board-editable .board-grid {
+  position: absolute;
+  inset: 0;
+  width: auto;
+  height: auto;
+  aspect-ratio: auto;
+  padding: 0;
+  gap: 0;
+  background: none;
+  border-radius: 0;
+}
+
+.board-editable .board-svg {
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+}
+
+/* Cells have no fill: only the rings show over the poster's holds */
+.board-editable .hold-cell {
+  background: transparent;
+  border: 4px solid transparent;
+  border-radius: 50%;
+  margin: 7%;
+  cursor: pointer;
+  pointer-events: auto;
+  transition: border-color 0.12s ease, box-shadow 0.12s ease, transform 0.12s ease;
+}
+
+.board-editable .hold-cell.middle {
+  border-color: #3b82f6;
+  box-shadow: 0 0 8px rgba(59, 130, 246, 0.7);
+}
+
+.board-editable .hold-cell.start {
+  border-color: #22c55e;
+  box-shadow: 0 0 10px rgba(34, 197, 94, 0.8);
+}
+
+.board-editable .hold-cell.end {
+  border-color: #ef4444;
+  box-shadow: 0 0 10px rgba(239, 68, 68, 0.8);
+}
+
+/* Hover and the pending arrow start use a cyan glow */
+.board-editable .hold-cell:hover {
+  border-color: #22d3ee;
+  box-shadow: 0 0 12px rgba(34, 211, 238, 0.9);
+  transform: scale(1.08);
+}
+
+.board-editable .hold-cell.pending {
+  border-color: #22d3ee;
+  border-style: dashed;
+  box-shadow: 0 0 12px rgba(34, 211, 238, 0.9);
+}
+
+/* ================= Responsive ================= */
+
+@media (max-width: 600px) {
+  header {
+    padding: 1rem;
+  }
+
+  .grid-form {
+    grid-template-columns: 1fr;
+  }
+}

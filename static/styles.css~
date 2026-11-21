@@ -1,0 +1,354 @@
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+  background: #f4f5f7;
+  color: #1f2328;
+  line-height: 1.4;
+}
+
+header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  padding: 1rem 1.5rem;
+  background: #1f2328;
+  color: #fff;
+}
+
+header h1 { margin: 0; font-size: 1.4rem; }
+.board-label { font-size: 0.9rem; font-weight: normal; opacity: 0.8; margin-left: 0.5rem; }
+
+main {
+  max-width: 900px;
+  margin: 1.5rem auto;
+  padding: 0 1rem;
+  display: grid;
+  gap: 1.5rem;
+}
+
+.card {
+  background: #fff;
+  border-radius: 8px;
+  padding: 1.25rem;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+}
+
+.card h2 { margin-top: 0; font-size: 1.15rem; }
+
+.flash {
+  background: #e0f2fe;
+  border: 1px solid #bae6fd;
+  padding: 0.6rem 0.9rem;
+  border-radius: 6px;
+}
+
+label {
+  display: flex;
+  flex-direction: column;
+  font-size: 0.9rem;
+  gap: 0.25rem;
+}
+
+input, select, textarea, button {
+  font: inherit;
+  padding: 0.5rem 0.6rem;
+  border: 1px solid #c9ced6;
+  border-radius: 6px;
+}
+
+textarea { resize: vertical; }
+.hint { color: #5b6370; font-size: 0.8rem; }
+.label-text { font-size: 0.9rem; margin-bottom: 0.25rem; display: block; }
+
+.grid-form {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.75rem;
+}
+
+.grid-form .wide,
+.grid-form .full { grid-column: 1 / -1; }
+
+.btn {
+  display: inline-block;
+  background: #2563eb;
+  color: #fff;
+  border: none;
+  cursor: pointer;
+  padding: 0.5rem 1rem;
+  border-radius: 6px;
+  text-decoration: none;
+  font-size: 0.95rem;
+}
+
+.btn:hover { background: #1d4ed8; }
+.btn.dark { background: #374151; }
+.btn.dark:hover { background: #4b5563; }
+.btn.danger { background: #b91c1c; }
+.btn.danger:hover { background: #991b1b; }
+
+.toolbar { display: flex; gap: 0.5rem; align-items: center; }
+.import-form { margin: 0; }
+
+.filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  align-items: center;
+  margin-bottom: 1rem;
+}
+
+.filters h2 { margin: 0; flex: 1 1 100%; }
+.filter-form { display: flex; gap: 0.5rem; flex-wrap: wrap; flex: 1 1 100%; }
+.filter-form input, .filter-form select { flex: 1 1 140px; }
+
+.problem-list { display: grid; gap: 0.75rem; }
+
+.problem {
+  border: 1px solid #e3e6eb;
+  border-radius: 8px;
+  padding: 0.9rem;
+}
+
+.problem-header {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  align-items: baseline;
+}
+
+.problem-title { font-weight: 600; font-size: 1.05rem; }
+.meta { font-size: 0.85rem; color: #5b6370; margin: 0.35rem 0; }
+
+.badge {
+  font-size: 0.8rem;
+  padding: 0.15rem 0.5rem;
+  border-radius: 999px;
+  background: #e5e7eb;
+}
+.badge.sent { background: #d1fae5; color: #065f46; }
+.badge.projecting { background: #fef3c7; color: #92400e; }
+.badge.to-try { background: #e0e7ff; color: #3730a3; }
+
+.attempts { margin: 0.5rem 0 0; padding-left: 1.1rem; font-size: 0.9rem; }
+
+.inline-form {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-top: 0.6rem;
+}
+.inline-form input[type="text"] { flex: 1 1 120px; }
+
+.problem-actions {
+  display: flex;
+  gap: 0.5rem;
+  margin-top: 0.6rem;
+  align-items: center;
+}
+
+.empty { color: #5b6370; text-align: center; }
+
+.beta {
+  margin-top: 0.6rem;
+  padding: 0.6rem 0.8rem;
+  background: #f8fafc;
+  border-left: 3px solid #2563eb;
+  border-radius: 4px;
+  font-size: 0.92rem;
+  white-space: pre-wrap;
+}
+
+/* ---------- Board: shared ---------- */
+
+.board-wrap {
+  display: flex;
+  width: 100%;
+  max-width: 330px;
+  margin: 0.4rem 0;
+}
+
+.board-main {
+  position: relative;
+  flex: 1;
+  min-width: 0;
+}
+
+.board-grid {
+  display: grid;
+  grid-template-columns: repeat(11, 1fr);
+  grid-template-rows: repeat(18, 1fr);
+  gap: 3px;
+  padding: 6px;
+  background: #1f2328;
+  border-radius: 8px;
+  aspect-ratio: 11 / 18;
+  width: 100%;
+}
+
+/* The SVG sits exactly over the grid's holds area, so arrows line up with holds */
+.board-svg {
+  position: absolute;
+  top: 6px;
+  left: 6px;
+  right: 6px;
+  bottom: 6px;
+  width: auto;
+  height: auto;
+  pointer-events: none;
+  overflow: visible;
+}
+
+.hold-cell {
+  background: #4b5563;
+  border-radius: 50%;
+  user-select: none;
+}
+
+.board-view { margin-top: 0.6rem; }
+
+/* Preview cards: coloured holds */
+.board-small .board-wrap { max-width: 220px; }
+.board-small .board-grid { gap: 2px; padding: 4px; }
+.board-small .board-svg { top: 4px; left: 4px; right: 4px; bottom: 4px; }
+.board-view .hold-cell.middle { background: #60a5fa; }
+.board-view .hold-cell.start { background: #22c55e; }
+.board-view .hold-cell.end { background: #ef4444; }
+
+/* ---------- Editor toolbar ---------- */
+
+.board-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  align-items: center;
+  margin-bottom: 0.6rem;
+  padding: 0.5rem;
+  background: #f8fafc;
+  border: 1px solid #e3e6eb;
+  border-radius: 10px;
+}
+
+.board-toolbar .tool {
+  padding: 0.35rem 0.8rem;
+  background: #fff;
+  color: #1f2328;
+  border: 1px solid #d1d5db;
+  border-radius: 999px;
+  font-size: 0.85rem;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.board-toolbar .tool:hover {
+  border-color: #22d3ee;
+  color: #0e7490;
+}
+
+.board-toolbar .tool.active {
+  background: linear-gradient(135deg, #0ea5e9, #22d3ee);
+  border-color: transparent;
+  color: #fff;
+  box-shadow: 0 0 10px rgba(34, 211, 238, 0.45);
+}
+
+.mode-hint {
+  flex-basis: 100%;
+  font-size: 0.8rem;
+  color: #5b6370;
+  padding-left: 0.2rem;
+}
+/* ---------- Board: poster editor (personal use, not committed) ---------- */
+
+.board-editable .board-wrap {
+  position: relative;
+  display: block;
+  max-width: 420px;
+  aspect-ratio: 665 / 1024;
+  background: url('/static/board-bg.png') center / 100% 100% no-repeat;
+  border-radius: 10px;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.25), inset 0 0 0 1px rgba(0, 0, 0, 0.1);
+  overflow: hidden;
+}
+
+.board-editable .board-main {
+  position: absolute;
+  left: 10.4%;
+  top: 6.3%;
+  width: 84.7%;
+  height: 89.8%;
+}
+
+.board-editable .board-grid {
+  position: absolute;
+  inset: 0;
+  width: auto;
+  height: auto;
+  aspect-ratio: auto;
+  padding: 0;
+  gap: 0;
+  background: none;
+  border-radius: 0;
+}
+
+.board-editable .board-svg {
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+}
+
+/* Cells have no fill: only the rings show over the poster's holds */
+.board-editable .hold-cell {
+  background: transparent;
+  border: 4px solid transparent;
+  border-radius: 50%;
+  margin: 7%;
+  cursor: pointer;
+  pointer-events: auto;
+  transition: border-color 0.12s ease, box-shadow 0.12s ease, transform 0.12s ease;
+}
+
+.board-editable .hold-cell.middle {
+  border-color: #3b82f6;
+  box-shadow: 0 0 8px rgba(59, 130, 246, 0.7);
+}
+
+.board-editable .hold-cell.start {
+  border-color: #22c55e;
+  box-shadow: 0 0 10px rgba(34, 197, 94, 0.8);
+}
+
+.board-editable .hold-cell.end {
+  border-color: #ef4444;
+  box-shadow: 0 0 10px rgba(239, 68, 68, 0.8);
+}
+
+/* Hover and the pending arrow start use a cyan glow */
+.board-editable .hold-cell:hover {
+  border-color: #22d3ee;
+  box-shadow: 0 0 12px rgba(34, 211, 238, 0.9);
+  transform: scale(1.08);
+}
+
+.board-editable .hold-cell.pending {
+  border-color: #22d3ee;
+  border-style: dashed;
+  box-shadow: 0 0 12px rgba(34, 211, 238, 0.9);
+}
+
+/* ---------- Responsive ---------- */
+
+@media (max-width: 600px) {
+  .grid-form { grid-template-columns: 1fr; }
+}
+
+/* Centre the poster board in the card */
+.board-editable .board-wrap {
+  margin: 0.6rem auto;
+}

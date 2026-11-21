@@ -1,0 +1,216 @@
+"""Climb Log: a local web app for logging Moonboard Masters 2017 (40°) problems."""
+
+import json
+import re
+import uuid
+from datetime import date, datetime
+from pathlib import Path
+
+from flask import Flask, Response, abort, flash, redirect, render_template, request, url_for
+
+BASE_DIR = Path(__file__).parent
+DATA_FILE = BASE_DIR / "data" / "climb_log.json"
+
+GRADES = ["6B", "6B+", "6C", "6C+", "7A", "7A+", "7B", "7B+", "7C", "7C+", "8A", "8A+", "8B", "8B+", "8C", "8C+"]
+STATUSES = ["to-try", "projecting", "sent"]
+
+# Masters 2017 board: columns A to K, rows 1 to 18
+VALID_HOLD = re.compile(r"^([A-K])([1-9]|1[0-8])$")
+
+app = Flask(__name__)
+app.secret_key = "change-me-for-local-use"
+
+
+# ---------- Storage ----------
+
+def load_problems():
+    if not DATA_FILE.exists():
+        return []
+    try:
+        return json.loads(DATA_FILE.read_text(encoding="utf-8"))
+    except json.JSONDecodeError:
+        return []
+
+
+def save_problems(problems):
+    DATA_FILE.parent.mkdir(parents=True, exist_ok=True)
+    DATA_FILE.write_text(json.dumps(problems, indent=2), encoding="utf-8")
+
+
+def find_problem(problems, problem_id):
+    for p in problems:
+        if p["id"] == problem_id:
+            return p
+    abort(404)
+
+
+# ---------- Parsing and validation ----------
+
+def parse_holds(text):
+    """Parse 'C5 start, F9, H14 end' into [{'position': 'C5', 'role': 'start'}, ...]."""
+    holds = []
+    for part in text.split(","):
+        tokens = part.split()
+        if not tokens:
+            continue
+        role_word = tokens[1].lower() if len(tokens) > 1 else ""
+        role = role_word if role_word in ("start", "end") else "middle"
+        holds.append({"position": tokens[0].upper(), "role": role})
+    return holds
+
+
+def validate_holds(holds):
+    if not holds:
+        return "Please enter at least one hold."
+    for h in holds:
+        if not VALID_HOLD.match(h["position"]):
+            return f'"{h["position"]}" is not on the board. Use columns A to K and rows 1 to 18.'
+    if sum(h["role"] == "start" for h in holds) != 1:
+        return "A problem needs exactly one start hold."
+    if sum(h["role"] == "end" for h in holds) != 1:
+        return "A problem needs exactly one end hold."
+    return None
+
+
+def parse_tags(text):
+    return [t.strip().lower() for t in text.split(",") if t.strip()]
+
+
+def format_holds(holds):
+    return ", ".join(
+        h["position"] if h["role"] == "middle" else f'{h["position"]} {h["role"]}' for h in holds
+    )
+
+
+# ---------- Routes ----------
+
+@app.route("/")
+def index():
+    problems = load_problems()
+    grade_filter = request.args.get("grade", "").strip().lower()
+    status_filter = request.args.get("status", "all")
+
+    visible = [
+        p for p in problems
+        if (not grade_filter or grade_filter in p["grade"].lower())
+        and (status_filter == "all" or p["status"] == status_filter)
+    ]
+    return render_template(
+        "index.html",
+        problems=visible,
+        total=len(problems),
+        grades=GRADES,
+        statuses=STATUSES,
+        grade_filter=grade_filter,
+        status_filter=status_filter,
+        today=date.today().isoformat(),
+        format_holds=format_holds,
+    )
+
+
+@app.route("/problems", methods=["POST"])
+def add_problem():
+    holds = parse_holds(request.form.get("holds", ""))
+    error = validate_holds(holds)
+    grade = request.form.get("grade", "")
+    if grade not in GRADES:
+        error = error or "Please choose a valid grade."
+    if error:
+        flash(error)
+        return redirect(url_for("index"))
+
+    problems = load_problems()
+    problems.append({
+        "id": uuid.uuid4().hex[:10],
+        "name": request.form.get("name", "").strip(),
+        "grade": grade,
+        "status": request.form.get("status") if request.form.get("status") in STATUSES else "to-try",
+        "holds": holds,
+        "tags": parse_tags(request.form.get("tags", "")),
+        "notes": request.form.get("notes", "").strip(),
+        "attempts": [],
+        "createdAt": datetime.now().isoformat(timespec="seconds"),
+    })
+    save_problems(problems)
+    flash("Problem saved.")
+    return redirect(url_for("index"))
+
+
+@app.route("/problems/<problem_id>/attempts", methods=["POST"])
+def log_attempt(problem_id):
+    problems = load_problems()
+    problem = find_problem(problems, problem_id)
+    result = request.form.get("result", "attempt")
+    attempt_date = request.form.get("date") or date.today().isoformat()
+
+    problem["attempts"].append({
+        "date": attempt_date,
+        "result": result,
+        "notes": request.form.get("notes", "").strip(),
+    })
+    if result == "sent":
+        problem["status"] = "sent"
+    elif problem["status"] == "to-try":
+        problem["status"] = "projecting"
+
+    save_problems(problems)
+    return redirect(url_for("index"))
+
+
+@app.route("/problems/<problem_id>/status", methods=["POST"])
+def set_status(problem_id):
+    problems = load_problems()
+    problem = find_problem(problems, problem_id)
+    status = request.form.get("status")
+    if status in STATUSES:
+        problem["status"] = status
+        save_problems(problems)
+    return redirect(url_for("index"))
+
+
+@app.route("/problems/<problem_id>/delete", methods=["POST"])
+def delete_problem(problem_id):
+    problems = load_problems()
+    find_problem(problems, problem_id)
+    problems = [p for p in problems if p["id"] != problem_id]
+    save_problems(problems)
+    flash("Problem deleted.")
+    return redirect(url_for("index"))
+
+
+@app.route("/export")
+def export():
+    body = json.dumps(load_problems(), indent=2)
+    filename = f"climb-log-{date.today().isoformat()}.json"
+    return Response(
+        body,
+        mimetype="application/json",
+        headers={"Content-Disposition": f"attachment; filename={filename}"},
+    )
+
+
+@app.route("/import", methods=["POST"])
+def import_problems():
+    upload = request.files.get("file")
+    if not upload:
+        flash("Choose a JSON file to import.")
+        return redirect(url_for("index"))
+    try:
+        incoming = json.loads(upload.read().decode("utf-8"))
+        if not isinstance(incoming, list):
+            raise ValueError("expected a list of problems")
+    except (ValueError, UnicodeDecodeError) as err:
+        flash(f"That file could not be imported: {err}")
+        return redirect(url_for("index"))
+
+    problems = load_problems()
+    existing_ids = {p["id"] for p in problems}
+    new = [p for p in incoming if isinstance(p, dict) and p.get("id") and p["id"] not in existing_ids]
+    save_problems(problems + new)
+    flash(f"Imported {len(new)} new problem(s).")
+    return redirect(url_for("index"))
+
+
+if __name__ == "__main__":
+    print("Climb Log running at http://127.0.0.1:5000")
+    app.run(debug=True)
