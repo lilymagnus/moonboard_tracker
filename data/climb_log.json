@@ -79,12 +79,88 @@
       ]
     },
     "tags": [
-      "heel hooks all the way baby"
+      "heel-hooks"
     ],
     "notes": "",
     "beta": "Initial no-foot start, right hand bump and high heel on the freed hand hold.",
     "parent_id": null,
+    "attempts": [
+      {
+        "date": "2026-11-21",
+        "result": "attempt",
+        "notes": ""
+      }
+    ],
+    "createdAt": "2026-11-21T11:10:38",
+    "snapshot": "EASY SIDE WALK.png"
+  },
+  {
+    "id": "6ee857118d",
+    "snapshot": "6ee857118d.svg",
+    "name": "EASY SIDE WALK (variant)",
+    "grade": "V3+",
+    "status": "to-try",
+    "holds": [
+      {
+        "position": "H10",
+        "role": "start"
+      },
+      {
+        "position": "K11",
+        "role": "start"
+      },
+      {
+        "position": "J13",
+        "role": "middle"
+      },
+      {
+        "position": "C13",
+        "role": "middle"
+      },
+      {
+        "position": "C16",
+        "role": "middle"
+      },
+      {
+        "position": "G13",
+        "role": "middle"
+      },
+      {
+        "position": "D18",
+        "role": "end"
+      }
+    ],
+    "annotations": {
+      "arrows": [
+        {
+          "from": "J13",
+          "to": "G13",
+          "label": ""
+        }
+      ],
+      "labels": [
+        {
+          "x": 105.3,
+          "y": 81.3,
+          "text": "heel"
+        },
+        {
+          "x": 65.0,
+          "y": 49.0,
+          "text": "heel"
+        },
+        {
+          "x": 82.9,
+          "y": 63.2,
+          "text": "pinch motherfucker"
+        }
+      ]
+    },
+    "tags": [],
+    "notes": "",
+    "beta": "remove holds until you fly",
+    "parent_id": "933fd71a91",
     "attempts": [],
-    "createdAt": "2026-11-21T11:10:38"
+    "createdAt": "2026-11-21T11:52:31"
   }
 ]

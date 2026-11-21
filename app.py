@@ -5,8 +5,13 @@ import re
 import uuid
 from datetime import date, datetime
 from pathlib import Path
+import base64
+import binascii
 
-from flask import Flask, Response, abort, flash, redirect, render_template, request, url_for
+from flask import (
+    Flask, Response, abort, flash, redirect, render_template, request,
+    send_from_directory, url_for,
+)
 
 BASE_DIR = Path(__file__).parent
 DATA_FILE = BASE_DIR / "data" / "climb_log.json"
@@ -17,6 +22,9 @@ STATUSES = ["to-try", "projecting", "sent"]
 # Masters 2017 board: columns A to K, rows 1 to 18
 VALID_HOLD = re.compile(r"^([A-K])([1-9]|1[0-8])$")
 MAX_LABEL_LENGTH = 60
+
+SNAPSHOT_DIR = BASE_DIR / "data" / "snapshots"
+MAX_SNAPSHOT_BYTES = 2_000_000
 
 app = Flask(__name__)
 app.secret_key = "change-me-for-local-use"
@@ -43,7 +51,43 @@ def find_problem(problems, problem_id):
         if p["id"] == problem_id:
             return p
     abort(404)
+# ---- SNAPSHOTS ----
 
+def snapshot_filename(name, problem_id, problems):
+    """Build a PNG filename from the problem name, adding a number if it's taken."""
+    base = re.sub(r"[^A-Za-z0-9 _()-]", "", name).strip() or "problem"
+    taken = {p.get("snapshot") for p in problems if p["id"] != problem_id}
+    candidate, n = f"{base}.png", 2
+    while candidate in taken:
+        candidate = f"{base} {n}.png"
+        n += 1
+    return candidate
+
+
+def save_snapshot(filename, data_url):
+    """Save a PNG sent as a data URL. Returns the filename, or None if invalid."""
+    prefix = "data:image/png;base64,"
+    if not data_url or not data_url.startswith(prefix):
+        return None
+    try:
+        raw = base64.b64decode(data_url[len(prefix):], validate=True)
+    except (binascii.Error, ValueError):
+        return None
+    if len(raw) > MAX_SNAPSHOT_BYTES or not raw.startswith(b"\x89PNG"):
+        return None
+    SNAPSHOT_DIR.mkdir(parents=True, exist_ok=True)
+    (SNAPSHOT_DIR / filename).write_bytes(raw)
+    return filename
+
+
+def remove_snapshot_file(filename):
+    if filename:
+        (SNAPSHOT_DIR / filename).unlink(missing_ok=True)
+
+
+@app.route("/snapshots/<path:filename>")
+def snapshot(filename):
+    return send_from_directory(SNAPSHOT_DIR, filename, mimetype="image/png")
 
 # ---------- Parsing and validation ----------
 
@@ -137,6 +181,13 @@ def format_holds(holds):
 
 
 # ---------- Routes ----------
+def has_snapshot(problem):
+    """True only if the saved picture file really exists."""
+    filename = problem.get("snapshot")
+    return bool(filename) and (SNAPSHOT_DIR / filename).is_file()
+
+
+app.jinja_env.globals["has_snapshot"] = has_snapshot
 
 @app.route("/")
 def index():
@@ -151,13 +202,13 @@ def index():
         and (status_filter == "all" or p["status"] == status_filter)
     ]
 
-    # Count variants per parent problem
-    variant_counts = {}
+    # Map each parent problem to its variants
+    variant_list = {}
     for p in problems:
         parent = p.get("parent_id")
         if parent:
-            variant_counts[parent] = variant_counts.get(parent, 0) + 1
-
+            variant_list.setdefault(parent, []).append(p)
+            
     # If "Make variant" was clicked, pre-fill the form from that problem
     prefill = by_id.get(request.args.get("variant_of", ""))
     if prefill:
@@ -180,7 +231,7 @@ def index():
         today=date.today().isoformat(),
         format_holds=format_holds,
         by_id=by_id,
-        variant_counts=variant_counts,
+        variant_list=variant_list,
         prefill=prefill,
         prefill_name=prefill_name,
         prefill_holds=prefill_holds,
@@ -201,14 +252,17 @@ def add_problem():
 
     problems = load_problems()
 
-    # Only link to a parent that actually exists
     parent_id = request.form.get("parent_id", "")
     if not any(p["id"] == parent_id for p in problems):
         parent_id = None
 
+    problem_id = uuid.uuid4().hex[:10]
+    name = request.form.get("name", "").strip()
+    snap_name = snapshot_filename(name, problem_id, problems)
+
     problems.append({
-        "id": uuid.uuid4().hex[:10],
-        "name": request.form.get("name", "").strip(),
+        "id": problem_id,
+        "name": name,
         "grade": grade,
         "status": request.form.get("status") if request.form.get("status") in STATUSES else "to-try",
         "holds": holds,
@@ -217,13 +271,13 @@ def add_problem():
         "notes": request.form.get("notes", "").strip(),
         "beta": request.form.get("beta", "").strip(),
         "parent_id": parent_id,
+        "snapshot": save_snapshot(snap_name, request.form.get("snapshot", "")),
         "attempts": [],
         "createdAt": datetime.now().isoformat(timespec="seconds"),
     })
     save_problems(problems)
     flash("Variant saved." if parent_id else "Problem saved.")
     return redirect(url_for("index"))
-
 
 @app.route("/problems/<problem_id>/attempts", methods=["POST"])
 def log_attempt(problem_id):
@@ -260,12 +314,64 @@ def set_status(problem_id):
 @app.route("/problems/<problem_id>/delete", methods=["POST"])
 def delete_problem(problem_id):
     problems = load_problems()
-    find_problem(problems, problem_id)
+    problem = find_problem(problems, problem_id)
+    remove_snapshot_file(problem.get("snapshot"))
     problems = [p for p in problems if p["id"] != problem_id]
     save_problems(problems)
     flash("Problem deleted.")
     return redirect(url_for("index"))
 
+@app.route("/problems/<problem_id>/edit")
+def edit_problem(problem_id):
+    problem = find_problem(load_problems(), problem_id)
+    return render_template(
+        "edit.html",
+        p=problem,
+        grades=GRADES,
+        statuses=STATUSES,
+        holds_text=format_holds(problem["holds"]),
+        annotations_json=json.dumps(problem.get("annotations", {"arrows": [], "labels": []})),
+        tags_text=", ".join(problem.get("tags", [])),
+    )
+
+@app.route("/problems/<problem_id>/update", methods=["POST"])
+def update_problem(problem_id):
+    problems = load_problems()
+    problem = find_problem(problems, problem_id)
+
+    holds = parse_holds(request.form.get("holds", ""))
+    error = validate_holds(holds)
+    grade = request.form.get("grade", "")
+    if grade not in GRADES:
+        error = error or "Please choose a valid grade."
+    if error:
+        flash(error)
+        return redirect(url_for("edit_problem", problem_id=problem_id))
+
+    name = request.form.get("name", "").strip()
+    old_snapshot = problem.get("snapshot")
+    new_snapshot = save_snapshot(
+        snapshot_filename(name, problem_id, problems),
+        request.form.get("snapshot", ""),
+    )
+    # If the name changed, the old picture file is no longer used
+    if new_snapshot and old_snapshot and old_snapshot != new_snapshot:
+        remove_snapshot_file(old_snapshot)
+
+    problem.update({
+        "name": name,
+        "grade": grade,
+        "status": request.form.get("status") if request.form.get("status") in STATUSES else problem["status"],
+        "holds": holds,
+        "annotations": parse_annotations(request.form.get("annotations", "")),
+        "tags": parse_tags(request.form.get("tags", "")),
+        "notes": request.form.get("notes", "").strip(),
+        "beta": request.form.get("beta", "").strip(),
+        "snapshot": new_snapshot or old_snapshot,
+    })
+    save_problems(problems)
+    flash("Problem updated.")
+    return redirect(url_for("index"))
 
 @app.route("/export")
 def export():

@@ -1,4 +1,4 @@
-/A* ================= Base ================= */
+/* ================= Base ================= */
 
 * { box-sizing: border-box; }
 
@@ -517,4 +517,32 @@ textarea { resize: vertical; }
   .grid-form {
     grid-template-columns: 1fr;
   }
+}
+
+.snapshot {
+  display: block;
+  width: 100%;
+  max-width: 300px;
+  margin-top: 0.7rem;
+  border-radius: 10px;
+}
+/* Variant links and jump highlight */
+.variant-link a.jump {
+  color: #0e7490;
+  font-weight: 600;
+  text-decoration: none;
+  border-bottom: 1px dashed #22d3ee;
+}
+
+.variant-link a.jump:hover {
+  color: #155e75;
+}
+
+.problem:target {
+  animation: flash-target 1.6s ease;
+}
+
+@keyframes flash-target {
+  0%, 30% { box-shadow: 0 0 0 4px rgba(34, 211, 238, 0.7); }
+  100% { box-shadow: 0 0 0 0 rgba(34, 211, 238, 0); }
 }

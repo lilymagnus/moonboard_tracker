@@ -107,27 +107,40 @@
 
       <div class="problem-list">
         {% for p in problems %}
-          <article class="problem {{ p.status }}">
+	<article class="problem {{ p.status }}" id="problem-{{ p.id }}">
             <div class="problem-header">
               <span class="problem-title">{{ p.name }} <span class="meta">({{ p.grade }})</span></span>
               <span class="badge {{ p.status }}">{{ p.status }}</span>
             </div>
 
-            {% if p.parent_id and p.parent_id in by_id %}
-              <p class="meta">Variant of {{ by_id[p.parent_id].name }}</p>
-            {% elif variant_counts.get(p.id) %}
-              <p class="meta">{{ variant_counts[p.id] }} variant{{ 's' if variant_counts[p.id] != 1 }}</p>
+	    {% if p.parent_id and p.parent_id in by_id %}
+              <p class="meta variant-link">
+                Variant of
+                <a href="#problem-{{ p.parent_id }}" class="jump">{{ by_id[p.parent_id].name }}</a>
+              </p>
             {% endif %}
-
+            {% if variant_list.get(p.id) %}
+              <p class="meta variant-link">
+                {{ variant_list[p.id]|length }} variant{{ 's' if variant_list[p.id]|length != 1 }}:
+                {% for v in variant_list[p.id] %}
+                  <a href="#problem-{{ v.id }}" class="jump">{{ v.name }}</a>{% if not loop.last %}, {% endif %}
+                {% endfor %}
+              </p>
+              {% endif %}
+	      
             <p class="meta">
               {{ format_holds(p.holds) }}
               {% if p.tags %} &middot; {{ p.tags|join(', ') }}{% endif %}
             </p>
 
-            <div class="board-view"
-                 data-holds='{{ p.holds|tojson }}'
-                 data-annotations='{{ p.annotations|default({"arrows": [], "labels": []}, true)|tojson }}'></div>
-
+	    {% if has_snapshot(p) %}
+              <img class="snapshot" src="{{ url_for('snapshot', filename=p.snapshot) }}" alt="Board for {{ p.name }}" />
+            {% else %}
+              <div class="board-view"
+                   data-holds='{{ p.holds|tojson }}'
+                   data-annotations='{{ p.annotations|default({"arrows": [], "labels": []}, true)|tojson }}'></div>
+              {% endif %}
+	      
             {% if p.beta %}
               <div class="beta"><strong>Beta:</strong> {{ p.beta }}</div>
             {% endif %}
@@ -159,6 +172,7 @@
                   {% endfor %}
                 </select>
               </form>
+	      <a class="btn dark" href="{{ url_for('edit_problem', problem_id=p.id) }}">Edit</a>
               <a class="btn dark" href="{{ url_for('index', variant_of=p.id) }}#problem-form">Make variant</a>
               <form action="{{ url_for('delete_problem', problem_id=p.id) }}" method="post"
                     onsubmit="return confirm('Delete this problem and its attempts?');">

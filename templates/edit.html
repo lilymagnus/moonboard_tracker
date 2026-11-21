@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Edit {{ p.name }} - Climb Log</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}" />
+</head>
+<body>
+  <header>
+    <h1>Climb Log <span class="board-label">Moonboard Masters 2017 &middot; 40&deg;</span></h1>
+    <div class="toolbar">
+      <a class="btn dark" href="{{ url_for('index') }}">Back to catalog</a>
+    </div>
+  </header>
+
+  <main>
+    {% with messages = get_flashed_messages() %}
+      {% for msg in messages %}
+        <div class="flash">{{ msg }}</div>
+      {% endfor %}
+    {% endwith %}
+
+    <section class="card">
+      <h2>Edit problem</h2>
+      <form action="{{ url_for('update_problem', problem_id=p.id) }}" method="post" class="grid-form">
+        <label>
+          Name
+          <input name="name" type="text" required value="{{ p.name }}" />
+        </label>
+        <label>
+          Grade
+          <select name="grade" required>
+            {% for g in grades %}
+              <option value="{{ g }}" {% if p.grade == g %}selected{% endif %}>{{ g }}</option>
+            {% endfor %}
+          </select>
+        </label>
+        <label>
+          Status
+          <select name="status">
+            {% for s in statuses %}
+              <option value="{{ s }}" {% if p.status == s %}selected{% endif %}>{{ s }}</option>
+            {% endfor %}
+          </select>
+        </label>
+
+        <div class="wide">
+          <span class="label-text">Board</span>
+          <div id="board-input"></div>
+          <input id="holds-input" name="holds" type="text" required value="{{ holds_text }}" />
+          <input id="annotations-input" name="annotations" type="hidden" value="{{ annotations_json }}" />
+          <small class="hint">Holds are filled in as you tap. The text box also accepts typed holds.</small>
+        </div>
+
+        <label class="wide">
+          Beta (written explanation)
+          <textarea name="beta" rows="3">{{ p.beta or '' }}</textarea>
+        </label>
+        <label class="wide">
+          Tags (comma separated)
+          <input name="tags" type="text" value="{{ tags_text }}" />
+        </label>
+        <label class="wide">
+          Notes
+          <textarea name="notes" rows="2">{{ p.notes or '' }}</textarea>
+        </label>
+        <button type="submit" class="btn full">Save changes</button>
+      </form>
+    </section>
+  </main>
+
+  <script src="{{ url_for('static', filename='board.js') }}"></script>
+</body>
+</html>

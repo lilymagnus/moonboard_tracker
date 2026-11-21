@@ -190,7 +190,7 @@
           y1: from.y + (dy / len) * trim,
           x2: to.x - (dx / len) * trim,
           y2: to.y - (dy / len) * trim,
-          stroke: "#facc15",
+          stroke: "#f97316",
           "stroke-width": "1.6",
           "stroke-linecap": "round",
           "marker-end": `url(#arrow-${uid})`,
@@ -262,6 +262,100 @@
     svg.addEventListener("pointercancel", onUp);
   }
 
+  // ---------- Snapshot (saved picture of the board) ----------
+  // Converts the SVG drawing into a PNG data URL
+  function svgToPng(svgText) {
+    return new Promise((resolve, reject) => {
+      const img = new Image();
+      img.onload = () => {
+        const canvas = document.createElement("canvas");
+        canvas.width = img.naturalWidth;
+        canvas.height = img.naturalHeight;
+        canvas.getContext("2d").drawImage(img, 0, 0);
+        resolve(canvas.toDataURL("image/png"));
+      };
+      img.onerror = reject;
+      img.src = "data:image/svg+xml;charset=utf-8," + encodeURIComponent(svgText);
+    });
+  }
+  
+  function escapeXml(s) {
+    return String(s).replace(/[&<>"']/g, (c) =>
+      ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&apos;" })[c]
+    );
+  }
+
+  // Draws the board as an SVG string. Coordinates are scaled 4x from the editor's space.
+  function buildSnapshot(holds, annotations) {
+    const S = 4;
+    const p = (pt) => ({ x: pt.x * S, y: pt.y * S });
+    const parts = [];
+
+    parts.push(`<rect width="${VIEW_W * S}" height="${VIEW_H * S}" rx="16" fill="#1f2328"/>`);
+
+    // Empty grid positions
+    for (let r = ROWS; r >= 1; r--) {
+      for (const letter of COLS) {
+        const c = p(centre(letter + r));
+        parts.push(`<circle cx="${c.x}" cy="${c.y}" r="11" fill="#374151"/>`);
+      }
+    }
+
+    // Arrows: dark outline, then orange line with a triangle head
+    annotations.arrows.forEach((a) => {
+      const from = p(centre(a.from));
+      const to = p(centre(a.to));
+      const dx = to.x - from.x;
+      const dy = to.y - from.y;
+      const len = Math.hypot(dx, dy) || 1;
+      const ux = dx / len;
+      const uy = dy / len;
+      const tip = { x: to.x - ux * 18, y: to.y - uy * 18 };
+      const base = { x: tip.x - ux * 22, y: tip.y - uy * 22 };
+      const px = -uy * 12;
+      const py = ux * 12;
+      const start = { x: from.x + ux * 14, y: from.y + uy * 14 };
+      const head = `${tip.x},${tip.y} ${base.x + px},${base.y + py} ${base.x - px},${base.y - py}`;
+
+      parts.push(
+        `<line x1="${start.x}" y1="${start.y}" x2="${base.x}" y2="${base.y}" stroke="#1f2328" stroke-width="17" stroke-linecap="round"/>`
+      );
+      parts.push(
+        `<line x1="${start.x}" y1="${start.y}" x2="${base.x}" y2="${base.y}" stroke="#f97316" stroke-width="10" stroke-linecap="round"/>`
+      );
+      parts.push(`<polygon points="${head}" fill="#f97316"/>`);
+
+      if (a.label) {
+        parts.push(
+          `<text x="${(from.x + to.x) / 2}" y="${(from.y + to.y) / 2 - 6}" text-anchor="middle" font-family="Arial, sans-serif" font-size="16" font-weight="bold" fill="#fff" stroke="#1f2328" stroke-width="4" paint-order="stroke">${escapeXml(a.label)}</text>`
+        );
+      }
+    });
+
+    // Holds: coloured circles with S or E marked
+    Object.entries(holds).forEach(([pos, role]) => {
+      const c = p(centre(pos));
+      const colour = role === "start" ? "#22c55e" : role === "end" ? "#ef4444" : "#3b82f6";
+      parts.push(`<circle cx="${c.x}" cy="${c.y}" r="15" fill="${colour}" stroke="#fff" stroke-width="2"/>`);
+      if (role !== "middle") {
+        parts.push(
+          `<text x="${c.x}" y="${c.y + 6}" text-anchor="middle" font-family="Arial, sans-serif" font-size="16" font-weight="bold" fill="#fff">${role === "start" ? "S" : "E"}</text>`
+        );
+      }
+    });
+
+    // Labels, placed where they were dragged
+    annotations.labels.forEach((l) => {
+      const x = l.x * S;
+      const y = l.y * S;
+      parts.push(
+        `<text x="${x}" y="${y}" text-anchor="middle" font-family="Arial, sans-serif" font-size="16" font-weight="bold" fill="#fff" stroke="#1f2328" stroke-width="4" paint-order="stroke">${escapeXml(l.text)}</text>`
+      );
+    });
+
+    return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${VIEW_W * S} ${VIEW_H * S}" width="${VIEW_W * S}" height="${VIEW_H * S}">${parts.join("")}</svg>`;
+  }
+    
   // ---------- Editor ----------
 
   function initEditor(container, holdsInput, annotationsInput) {
@@ -280,12 +374,39 @@
     container.prepend(toolbar);
     const hint = toolbar.querySelector(".mode-hint");
 
+    // Hidden field that carries the board picture when the form is saved
+    const snapshotInput = document.createElement("input");
+    snapshotInput.type = "hidden";
+    snapshotInput.name = "snapshot";
+      container.closest("form").appendChild(snapshotInput);
+
+        // Convert the picture to PNG just before the form is sent
+    let submitting = false;
+    const form = container.closest("form");
+    form.addEventListener("submit", (e) => {
+      if (submitting) return;
+      e.preventDefault();
+      const send = () => {
+        submitting = true;
+        form.submit();
+      };
+      svgToPng(buildSnapshot(holds, annotations))
+        .then((png) => {
+          snapshotInput.value = png;
+          send();
+        })
+        .catch(() => {
+          snapshotInput.value = "";
+          send();
+        });
+    });
+      
     let holds = parseText(holdsInput.value);
     let annotations = parseAnnotations(annotationsInput.value);
     let mode = "holds";
     let pendingFrom = null;
     const history = [];
-
+      
     function snapshot() {
       history.push(JSON.stringify({ holds, annotations }));
       if (history.length > 100) history.shift();
@@ -305,7 +426,8 @@
       drawOverlay(svg, uid, annotations, editorOpts);
       holdsInput.value = toText(holds);
       annotationsInput.value = JSON.stringify(annotations);
-      updateHint();
+	snapshotInput.value = buildSnapshot(holds, annotations);
+	updateHint();
     }
 
     // Tapping an existing label opens its text for editing
@@ -397,13 +519,19 @@
 
     // Typing in the text box updates the board, but doesn't rewrite the text
     holdsInput.addEventListener("input", () => {
-      holds = parseText(holdsInput.value);
-      paintHolds(grid, holds, pendingFrom);
+	holds = parseText(holdsInput.value);
+	snapshotInput.value = buildSnapshot(holds, annotations);
+	paintHolds(grid, holds, pendingFrom);
     });
 
     paintHolds(grid, holds, null);
     drawOverlay(svg, uid, annotations, editorOpts);
     updateHint();
+      
+    paintHolds(grid, holds, null);
+    drawOverlay(svg, uid, annotations, editorOpts);
+    updateHint();
+    snapshotInput.value = buildSnapshot(holds, annotations);
   }
 
   // ---------- Viewer (saved problem cards) ----------
